@@ -3,6 +3,22 @@
 ** Stack and Call structure of Lua
 ** See Copyright Notice in lua.h
 */
+/*
+**  参考：http://www.cnblogs.com/lontoken/p/3488831.html
+**  概要
+	lua中有两种栈:数据栈和调用栈
+    lua中的数据可以分为两类:值类型和引用类型,
+      值类型可以被任意复制,
+	  而引用类型共享一份数据,复制时只是复制其引用,并由GC负责维护其生命期.lua使用一个unine Value来保存数据.
+	union Value {  
+		GCObject *gc;    // collectable objects
+		void *p;         // light userdata
+		int b;           // booleans
+		lua_CFunction f; // light C functions
+		numfield         // numbers
+	};  
+*/
+
 
 
 #include <setjmp.h>
@@ -46,6 +62,10 @@
 ** C++ code, with _longjmp/_setjmp when asked to use them, and with
 ** longjmp/setjmp otherwise.
 */
+/*
+** lua的异常捕捉函数封装
+** longjmp()第二个参数时setjmp的返回值
+*/
 #if !defined(LUAI_THROW)
 
 #if defined(__cplusplus) && !defined(LUA_USE_LONGJMP)
@@ -74,13 +94,23 @@
 
 
 /* chain list of long jump buffers */
+/*
+** lua_longjmp 跳转链表，初步认为实现多层跳回前面代码的作用
+** b 跳转的结构体
+   typedef struct _jmp_buf
+   {
+      int _jp[_JBLEN+1];
+   } jmp_buf[1];   存储的是指令语句的指针
+*/
 struct lua_longjmp {
   struct lua_longjmp *previous;
   luai_jmpbuf b;
   volatile int status;  /* error code */
 };
 
-
+/*
+** 将TString类型的errmsg 写入 TValue(*StkId)
+*/
 static void seterrorobj (lua_State *L, int errcode, StkId oldtop) {
   switch (errcode) {
     case LUA_ERRMEM: {  /* memory error? */
@@ -99,7 +129,9 @@ static void seterrorobj (lua_State *L, int errcode, StkId oldtop) {
   L->top = oldtop + 1;
 }
 
-
+/*
+** L 有个跳转链表
+*/
 l_noret luaD_throw (lua_State *L, int errcode) {
   if (L->errorJmp) {  /* thread has an error handler? */
     L->errorJmp->status = errcode;  /* set status */
@@ -121,7 +153,9 @@ l_noret luaD_throw (lua_State *L, int errcode) {
   }
 }
 
-
+/*
+** 不懂 放一放
+*/
 int luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
   unsigned short oldnCcalls = L->nCcalls;
   struct lua_longjmp lj;
@@ -138,7 +172,9 @@ int luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
 
 /* }====================================================== */
 
-
+/*
+** 遍历L的CallInfo链表，设置top, func值
+*/
 static void correctstack (lua_State *L, TValue *oldstack) {
   CallInfo *ci;
   GCObject *up;
@@ -157,7 +193,9 @@ static void correctstack (lua_State *L, TValue *oldstack) {
 /* some space for error handling */
 #define ERRORSTACKSIZE	(LUAI_MAXSTACK + 200)
 
-
+/*
+** 
+*/
 void luaD_reallocstack (lua_State *L, int newsize) {
   TValue *oldstack = L->stack;
   int lim = L->stacksize;
