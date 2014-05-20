@@ -194,7 +194,7 @@ static void correctstack (lua_State *L, TValue *oldstack) {
 #define ERRORSTACKSIZE	(LUAI_MAXSTACK + 200)
 
 /*
-** 
+** 给L->stack重新分配空间
 */
 void luaD_reallocstack (lua_State *L, int newsize) {
   TValue *oldstack = L->stack;
@@ -209,7 +209,9 @@ void luaD_reallocstack (lua_State *L, int newsize) {
   correctstack(L, oldstack);
 }
 
-
+/*
+** 给L->stack扩容
+*/
 void luaD_growstack (lua_State *L, int n) {
   int size = L->stacksize;
   if (size > LUAI_MAXSTACK)  /* error after extra size? */
@@ -228,7 +230,9 @@ void luaD_growstack (lua_State *L, int n) {
   }
 }
 
-
+/*
+** 遍历L的CallInfo，找出最小的top
+*/
 static int stackinuse (lua_State *L) {
   CallInfo *ci;
   StkId lim = L->top;
@@ -239,7 +243,9 @@ static int stackinuse (lua_State *L) {
   return cast_int(lim - L->stack) + 1;  /* part of stack in use */
 }
 
-
+/*
+** 收缩L的stack的大小
+*/
 void luaD_shrinkstack (lua_State *L) {
   int inuse = stackinuse(L);
   int goodsize = inuse + (inuse / 8) + 2*EXTRA_STACK;
@@ -251,7 +257,9 @@ void luaD_shrinkstack (lua_State *L) {
     luaD_reallocstack(L, goodsize);  /* shrink it */
 }
 
-
+/*
+** 传入参数event line，调用hook
+*/
 void luaD_hook (lua_State *L, int event, int line) {
   lua_Hook hook = L->hook;
   if (hook && L->allowhook) {
@@ -278,7 +286,9 @@ void luaD_hook (lua_State *L, int event, int line) {
   }
 }
 
-
+/*
+** 调用hook的外皮函数
+*/
 static void callhook (lua_State *L, CallInfo *ci) {
   int hook = LUA_HOOKCALL;
   ci->u.l.savedpc++;  /* hooks assume 'pc' is already incremented */
@@ -291,7 +301,9 @@ static void callhook (lua_State *L, CallInfo *ci) {
   ci->u.l.savedpc--;  /* correct 'pc' */
 }
 
-
+/*
+** 将L->top之前的actual个参数移到top之后
+*/
 static StkId adjust_varargs (lua_State *L, Proto *p, int actual) {
   int i;
   int nfixargs = p->numparams;
@@ -308,7 +320,9 @@ static StkId adjust_varargs (lua_State *L, Proto *p, int actual) {
   return base;
 }
 
-
+/*
+** 
+*/
 static StkId tryfuncTM (lua_State *L, StkId func) {
   const TValue *tm = luaT_gettmbyobj(L, func, TM_CALL);
   StkId p;
