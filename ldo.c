@@ -7,16 +7,28 @@
 **  参考：http://www.cnblogs.com/lontoken/p/3488831.html
 **  概要
 	lua中有两种栈:数据栈和调用栈
+		调用栈放在一个叫做 CallInfo 的结构中，以双向链表的形式储存在线程对象lua_State里
+		数据栈放在L->stack，是一个数组
     lua中的数据可以分为两类:值类型和引用类型,
-      值类型可以被任意复制,
-	  而引用类型共享一份数据,复制时只是复制其引用,并由GC负责维护其生命期.lua使用一个unine Value来保存数据.
-	union Value {  
-		GCObject *gc;    // collectable objects
-		void *p;         // light userdata
-		int b;           // booleans
-		lua_CFunction f; // light C functions
-		numfield         // numbers
-	};  
+        值类型可以被任意复制,
+	    而引用类型共享一份数据,复制时只是复制其引用,并由GC负责维护其生命期.lua使用一个unine Value来保存数据.
+		union Value {  
+			GCObject *gc;    // collectable objects
+			void *p;         // light userdata
+			int b;           // booleans
+			lua_CFunction f; // light C functions
+			numfield         // numbers
+		};
+		为了区分类型：  #define TValuefields Value value_; int tt_
+						struct lua_TValue {
+							TValuefields;
+						};
+						typedef struct lua_TValue TValue;   // 最终使用的就是这个
+		==> 这样一个数据就占掉12位 = 8位数据 + 4为类型
+		所以，在 Lua 5.2 中，可以选择打开 NaN Trick 来把数据类型信息压缩进 8 字节的数据段。
+		所谓 NaN Trick ，就是指在现行的浮点数二进制标准 IEEE 754 中，指数位全1时，表示这并不是一个数字。它用来表示无穷大，以及数字除 0的结果。也就是说，一个浮点数是不是数字，只取决于它的指数部分，和尾数部分无关。现实中的处理器，只会产生一种尾数全为 0 的 NaN。所有尾数不为 0 的 NaN 值，都可以看成是刻意构造出来的值。换句话说，处理器只会产生值为 0xfff8000000000000 的 NaN ，大于它的值都可以用作其它用途，且能和正常的浮点数区分开。
+		Double 类型的尾数位有 52 位，而在 32 位平台上，仅需要 32 位即可表示 Lua 支持的除数字以外的所有类型（主要是指针），剩下的位置来保存类型信息足够了。当 Lua 5.2 开启 NaN Trick 编译选项时，简单的把前 24 位设置为 7FF7A5 来标识非数字类型，留下 8 位储存类型信息。
+		对于目前 Lua 5.2 的实现，NaN Trick 对于 64 位平台是没有意义的。因为指针和 double 同样占用 8字节的空间。不过，64 位平台上，地址指针有效位只有 48 位，理论上也是可以利用 NaN Trick 的，但这样会增加代码复杂度，且在 64位平台上节约内存的意义相对较小，Lua 5.2 的实现就没有这么做了。倒是在 LuaJIT 2.0 中，对 64位平台，同样采用了这个技巧
 */
 
 
@@ -302,7 +314,7 @@ static void callhook (lua_State *L, CallInfo *ci) {
 }
 
 /*
-** 将L->top之前的actual个参数移到top之后
+** 将L->top之前的actual个参数移到top之后，然后置空
 */
 static StkId adjust_varargs (lua_State *L, Proto *p, int actual) {
   int i;
@@ -321,7 +333,7 @@ static StkId adjust_varargs (lua_State *L, Proto *p, int actual) {
 }
 
 /*
-** 
+** 将数据栈上的func - top之间的向上移，最后在func位置处放置tm
 */
 static StkId tryfuncTM (lua_State *L, StkId func) {
   const TValue *tm = luaT_gettmbyobj(L, func, TM_CALL);
@@ -344,6 +356,9 @@ static StkId tryfuncTM (lua_State *L, StkId func) {
 
 /*
 ** returns true if function has been executed (C function)
+*/
+/*
+** 调用函数，返回1代表执行成功，否则返回0
 */
 int luaD_precall (lua_State *L, StkId func, int nresults) {
   lua_CFunction f;
@@ -410,7 +425,9 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
   }
 }
 
-
+/*
+** 结束完一次函数调用(无论是C还是lua函数)的处理, firstResult是函数第一个返回值的地址
+*/
 int luaD_poscall (lua_State *L, StkId firstResult) {
   StkId res;
   int wanted, i;
@@ -424,9 +441,10 @@ int luaD_poscall (lua_State *L, StkId firstResult) {
     L->oldpc = ci->previous->u.l.savedpc;  /* 'oldpc' for caller function */
   }
   res = ci->func;  /* res == final position of 1st result */
-  wanted = ci->nresults;
+  wanted = ci->nresults;  /* 返回结果的个数 */
   L->ci = ci = ci->previous;  /* back to caller */
   /* move results to correct place */
+  /* 返回值压入栈中 */
   for (i = wanted; i != 0 && firstResult < L->top; i--)
     setobjs2s(L, res++, firstResult++);
   while (i-- > 0)
