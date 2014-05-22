@@ -358,7 +358,7 @@ static StkId tryfuncTM (lua_State *L, StkId func) {
 ** returns true if function has been executed (C function)
 */
 /*
-** 调用函数，返回1代表执行成功，否则返回0
+** 
 */
 int luaD_precall (lua_State *L, StkId func, int nresults) {
   lua_CFunction f;
@@ -426,7 +426,7 @@ int luaD_precall (lua_State *L, StkId func, int nresults) {
 }
 
 /*
-** 结束完一次函数调用(无论是C还是lua函数)的处理, firstResult是函数第一个返回值的地址
+** 判断是什么类型的函数，firstResult是函数第一个返回值的地址，此时还没真正执行
 */
 int luaD_poscall (lua_State *L, StkId firstResult) {
   StkId res;
@@ -460,8 +460,11 @@ int luaD_poscall (lua_State *L, StkId firstResult) {
 ** When returns, all the results are on the stack, starting at the original
 ** function position.
 */
+/*
+** 真正执行调用栈上的函数
+*/
 void luaD_call (lua_State *L, StkId func, int nResults, int allowyield) {
-  if (++L->nCcalls >= LUAI_MAXCCALLS) {
+  if (++L->nCcalls >= LUAI_MAXCCALLS) {// 不能超过200层嵌入调用
     if (L->nCcalls == LUAI_MAXCCALLS)
       luaG_runerror(L, "C stack overflow");
     else if (L->nCcalls >= (LUAI_MAXCCALLS + (LUAI_MAXCCALLS>>3)))
@@ -474,7 +477,9 @@ void luaD_call (lua_State *L, StkId func, int nResults, int allowyield) {
   L->nCcalls--;
 }
 
-
+/*
+** 真正执行调用栈上的函数
+*/
 static void finishCcall (lua_State *L) {
   CallInfo *ci = L->ci;
   int n;
@@ -499,7 +504,9 @@ static void finishCcall (lua_State *L) {
   luaD_poscall(L, L->top - n);
 }
 
-
+/*
+** 函数调用完的收尾工作
+*/
 static void unroll (lua_State *L, void *ud) {
   UNUSED(ud);
   for (;;) {
@@ -518,6 +525,9 @@ static void unroll (lua_State *L, void *ud) {
 /*
 ** check whether thread has a suspended protected call
 */
+/*
+** 检查是否有被暂停的函数
+*/
 static CallInfo *findpcall (lua_State *L) {
   CallInfo *ci;
   for (ci = L->ci; ci != NULL; ci = ci->previous) {  /* search for a pcall */
@@ -527,7 +537,9 @@ static CallInfo *findpcall (lua_State *L) {
   return NULL;  /* no pending pcall */
 }
 
-
+/*
+** 恢复被暂停的函数
+*/
 static int recover (lua_State *L, int status) {
   StkId oldtop;
   CallInfo *ci = findpcall(L);
@@ -552,6 +564,10 @@ static int recover (lua_State *L, int status) {
 ** coroutine itself. (Such errors should not be handled by any coroutine
 ** error handler and should not kill the coroutine.)
 */
+/*
+** 在resume调用的过程中发起错误信号，而不是在协程的执行里
+**（这些错误不应该在协程的错误处理里处理，也不应该被协程干掉）
+*/
 static l_noret resume_error (lua_State *L, const char *msg, StkId firstArg) {
   L->top = firstArg;  /* remove args from the stack */
   setsvalue2s(L, L->top, luaS_new(L, msg));  /* push error message */
@@ -562,6 +578,9 @@ static l_noret resume_error (lua_State *L, const char *msg, StkId firstArg) {
 
 /*
 ** do the work for 'lua_resume' in protected mode
+*/
+/*
+** 在保护模式下，完成lua_resume的工作
 */
 static void resume (lua_State *L, void *ud) {
   int nCcalls = L->nCcalls;
@@ -601,7 +620,9 @@ static void resume (lua_State *L, void *ud) {
   lua_assert(nCcalls == L->nCcalls);
 }
 
-
+/*
+** 在保护模式下，完成lua_resume的工作
+*/
 LUA_API int lua_resume (lua_State *L, lua_State *from, int nargs) {
   int status;
   int oldnny = L->nny;  /* save 'nny' */
@@ -706,18 +727,20 @@ static void checkmode (lua_State *L, const char *mode, const char *x) {
   }
 }
 
-
+/*
+** 
+*/
 static void f_parser (lua_State *L, void *ud) {
   int i;
   Closure *cl;
   struct SParser *p = cast(struct SParser *, ud);
   int c = zgetc(p->z);  /* read first character */
   if (c == LUA_SIGNATURE[0]) {
-    checkmode(L, p->mode, "binary");
+    checkmode(L, p->mode, "binary");   /* 二进制模式 */
     cl = luaU_undump(L, p->z, &p->buff, p->name);
   }
   else {
-    checkmode(L, p->mode, "text");
+    checkmode(L, p->mode, "text");     /* 文本模式 */
     cl = luaY_parser(L, p->z, &p->buff, &p->dyd, p->name, c);
   }
   lua_assert(cl->l.nupvalues == cl->l.p->sizeupvalues);
