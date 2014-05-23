@@ -3,6 +3,12 @@
 ** Debug Interface
 ** See Copyright Notice in lua.h
 */
+/*
+** 这个文件的功能是用来调试的，那就涉及到：
+**		1、对象是什么				CallInfo的ci
+**		2、能调试到它的组成部分		调试处理函数hook、upval、局部变量、闭包、
+**		3、用什么DS去实现的			
+*/
 
 
 #include <stdarg.h>
@@ -112,7 +118,7 @@ LUA_API int lua_getstack (lua_State *L, int level, lua_Debug *ar) {
 }
 
 /*
-** 返回处理函数的个数
+** 返回upval的名字
 */
 static const char *upvalname (Proto *p, int uv) {
   TString *s = check_exp(uv < p->sizeupvalues, p->upvalues[uv].name);
@@ -120,9 +126,11 @@ static const char *upvalname (Proto *p, int uv) {
   else return getstr(s);
 }
 
-
+/*
+** 获取函数的第n个参数
+*/
 static const char *findvararg (CallInfo *ci, int n, StkId *pos) {
-  int nparams = clLvalue(ci->func)->p->numparams;
+  int nparams = clLvalue(ci->func)->p->numparams; /* 如果是lua的闭包，返回闭包函数的参数个数 */
   if (n >= ci->u.l.base - ci->func - nparams)
     return NULL;  /* no such vararg */
   else {
@@ -131,7 +139,9 @@ static const char *findvararg (CallInfo *ci, int n, StkId *pos) {
   }
 }
 
-
+/*
+** 查找当前调用的当前指令pc的第几个局部变量的名字
+*/
 static const char *findlocal (lua_State *L, CallInfo *ci, int n,
                               StkId *pos) {
   const char *name = NULL;
@@ -157,7 +167,9 @@ static const char *findlocal (lua_State *L, CallInfo *ci, int n,
   return name;
 }
 
-
+/*
+** 查找当前调用的第n个局部变量的名字
+*/
 LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
   const char *name;
   lua_lock(L);
@@ -179,7 +191,9 @@ LUA_API const char *lua_getlocal (lua_State *L, const lua_Debug *ar, int n) {
   return name;
 }
 
-
+/*
+** 设置当前调用的第n个局部变量的名字
+*/
 LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
   StkId pos = 0;  /* to avoid warnings */
   const char *name = findlocal(L, ar->i_ci, n, &pos);
@@ -191,7 +205,9 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
   return name;
 }
 
-
+/*
+** ？？？
+*/
 static void funcinfo (lua_Debug *ar, Closure *cl) {
   if (noLuaClosure(cl)) {
     ar->source = "=[C]";
@@ -209,7 +225,9 @@ static void funcinfo (lua_Debug *ar, Closure *cl) {
   luaO_chunkid(ar->short_src, ar->source, LUA_IDSIZE);
 }
 
-
+/*
+** 收集有效的行数
+*/
 static void collectvalidlines (lua_State *L, Closure *f) {
   if (noLuaClosure(f)) {
     setnilvalue(L->top);
@@ -228,7 +246,9 @@ static void collectvalidlines (lua_State *L, Closure *f) {
   }
 }
 
-
+/*
+** 辅助获取信息
+*/
 static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
                        Closure *f, CallInfo *ci) {
   int status = 1;
