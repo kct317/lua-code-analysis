@@ -3,7 +3,9 @@
 ** Global State
 ** See Copyright Notice in lua.h
 */
-
+/*
+** 全局状态机
+*/
 
 #include <stddef.h>
 #include <string.h>
