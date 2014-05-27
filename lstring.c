@@ -73,9 +73,12 @@ unsigned int luaS_hash (const char *str, size_t l, unsigned int seed) {
 /*
 ** resizes the string table
 */
+/*
+** 
+*/
 void luaS_resize (lua_State *L, int newsize) {
   int i;
-  stringtable *tb = &G(L)->strt;
+  stringtable *tb = &G(L)->strt;  /* 全局字符串表 */
   /* cannot resize while GC is traversing strings */
   luaC_runtilstate(L, ~bitmask(GCSsweepstring));
   if (newsize > tb->size) {
