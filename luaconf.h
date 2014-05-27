@@ -338,7 +338,8 @@
 #if LUAI_BITSINT >= 32		/* { */
 #define LUA_INT32	int
 #define LUAI_UMEM	size_t
-#define LUAI_MEM	ptrdiff_t
+/* 保存两个指针之间的距离 */
+#define LUAI_MEM	ptrdiff_t  
 #else				/* }{ */
 /* 16-bit ints */
 #define LUA_INT32	long

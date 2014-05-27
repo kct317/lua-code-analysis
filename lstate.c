@@ -48,6 +48,9 @@
 ** a macro to help the creation of a unique random seed when a state is
 ** created; the seed is used to randomize hashes.
 */
+/*
+** 设置随机数种子
+*/
 #if !defined(luai_makeseed)
 #include <time.h>
 #define luai_makeseed()		cast(unsigned int, time(NULL))
@@ -57,6 +60,9 @@
 
 /*
 ** thread state + extra space
+*/
+/*
+** lua_State前弄个缓冲
 */
 typedef struct LX {
 #if defined(LUAI_EXTRASPACE)
@@ -88,14 +94,17 @@ typedef struct LG {
   { size_t t = cast(size_t, e); \
     memcpy(buff + p, &t, sizeof(t)); p += sizeof(t); }
 
+/*
+** 给每一个lua_State设置一个hash值
+*/
 static unsigned int makeseed (lua_State *L) {
   char buff[4 * sizeof(size_t)];
   unsigned int h = luai_makeseed();
   int p = 0;
-  addbuff(buff, p, L);  /* heap variable */
-  addbuff(buff, p, &h);  /* local variable */
-  addbuff(buff, p, luaO_nilobject);  /* global variable */
-  addbuff(buff, p, &lua_newstate);  /* public function */
+  addbuff(buff, p, L);  /* heap variable */  /* 就是GCObject*指针 */
+  addbuff(buff, p, &h);  /* local variable */  /* 随机数 */
+  addbuff(buff, p, luaO_nilobject);  /* global variable */  /* 全局的nil变量，所有的nil都是指向这个变量 */
+  addbuff(buff, p, &lua_newstate);  /* public function */  /* 回调函数 */
   lua_assert(p == sizeof(buff));
   return luaS_hash(buff, p, h);
 }
@@ -105,12 +114,17 @@ static unsigned int makeseed (lua_State *L) {
 ** set GCdebt to a new value keeping the value (totalbytes + GCdebt)
 ** invariant
 */
+/*
+** 在global_State，会记录分配的byte总数，分两部分：回收掉 和 还没回收
+*/
 void luaE_setdebt (global_State *g, l_mem debt) {
   g->totalbytes -= (debt - g->GCdebt);
   g->GCdebt = debt;
 }
 
-
+/*
+** 扩展调用栈，一个双向列表的add操作
+*/
 CallInfo *luaE_extendCI (lua_State *L) {
   CallInfo *ci = luaM_new(L, CallInfo);
   lua_assert(L->ci->next == NULL);
@@ -120,7 +134,9 @@ CallInfo *luaE_extendCI (lua_State *L) {
   return ci;
 }
 
-
+/*
+** 回收所有的调用栈
+*/
 void luaE_freeCI (lua_State *L) {
   CallInfo *ci = L->ci;
   CallInfo *next = ci->next;
@@ -131,7 +147,9 @@ void luaE_freeCI (lua_State *L) {
   }
 }
 
-
+/*
+** 初始化数据栈数组
+*/
 static void stack_init (lua_State *L1, lua_State *L) {
   int i; CallInfo *ci;
   /* initialize stack array */
@@ -151,7 +169,9 @@ static void stack_init (lua_State *L1, lua_State *L) {
   L1->ci = ci;
 }
 
-
+/*
+** 析构数据栈数组
+*/
 static void freestack (lua_State *L) {
   if (L->stack == NULL)
     return;  /* stack not completely built yet */
@@ -164,11 +184,14 @@ static void freestack (lua_State *L) {
 /*
 ** Create registry table and its predefined values
 */
+/*
+** 创建注册表、预定义值
+*/
 static void init_registry (lua_State *L, global_State *g) {
   TValue mt;
   /* create registry */
   Table *registry = luaH_new(L);
-  sethvalue(L, &g->l_registry, registry);
+  sethvalue(L, &g->l_registry, registry);  /* 右传左指针，转类型(h代表table) */
   luaH_resize(L, registry, LUA_RIDX_LAST, 0);
   /* registry[LUA_RIDX_MAINTHREAD] = L */
   setthvalue(L, &mt, L);
@@ -203,6 +226,9 @@ static void f_luaopen (lua_State *L, void *ud) {
 ** preinitialize a state with consistent values without allocating
 ** any memory (to avoid errors)
 */
+/*
+** 预初始化一个 lua_State  不分配内存
+*/
 static void preinit_state (lua_State *L, global_State *g) {
   G(L) = g;
   L->stack = NULL;
@@ -221,7 +247,9 @@ static void preinit_state (lua_State *L, global_State *g) {
   L->errfunc = 0;
 }
 
-
+/*
+** 析构global_State
+*/
 static void close_state (lua_State *L) {
   global_State *g = G(L);
   luaF_close(L, L->stack);  /* close all upvalues for this thread */
@@ -235,7 +263,9 @@ static void close_state (lua_State *L) {
   (*g->frealloc)(g->ud, fromstate(L), sizeof(LG), 0);  /* free main block */
 }
 
-
+/*
+** 新建线程对象(LUA_TTHREAD)，大小为sizeof(LX)
+*/
 LUA_API lua_State *lua_newthread (lua_State *L) {
   lua_State *L1;
   lua_lock(L);
@@ -254,7 +284,9 @@ LUA_API lua_State *lua_newthread (lua_State *L) {
   return L1;
 }
 
-
+/*
+** 
+*/
 void luaE_freethread (lua_State *L, lua_State *L1) {
   LX *l = fromstate(L1);
   luaF_close(L1, L1->stack);  /* close all upvalues for this thread */
