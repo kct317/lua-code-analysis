@@ -3,6 +3,14 @@
 ** Some generic functions over Lua objects
 ** See Copyright Notice in lua.h
 */
+/*
+** 整型和浮点型
+** 16进制和10进制的转换
+** 数字字符串 和 lua_Number
+** 将字符串放入数据栈
+** 输出错误信息
+*/
+
 
 #include <stdarg.h>
 #include <stdio.h>

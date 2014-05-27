@@ -5,6 +5,13 @@
 */
 /*
 ** 全局状态机
+** global_State 
+** lua_State
+** hash值
+** 调用栈
+** 数据栈
+** 注册表、预定义值
+** 线程对象LUA_TTHREAD
 */
 
 #include <stddef.h>

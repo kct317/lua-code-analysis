@@ -3,7 +3,9 @@
 ** String table (keeps all strings handled by Lua)
 ** See Copyright Notice in lua.h
 */
-
+/*
+** 字符串表
+*/
 
 #include <string.h>
 
@@ -22,6 +24,9 @@
 ** Lua will use at most ~(2^LUAI_HASHLIMIT) bytes from a string to
 ** compute its hash
 */
+/*
+** 字符串的hash值最多32个字节
+*/
 #if !defined(LUAI_HASHLIMIT)
 #define LUAI_HASHLIMIT		5
 #endif
@@ -29,6 +34,9 @@
 
 /*
 ** equality for long strings
+*/
+/*
+** getstr()  ==  (char*)(a+1)
 */
 int luaS_eqlngstr (TString *a, TString *b) {
   size_t len = a->tsv.len;
@@ -47,7 +55,11 @@ int luaS_eqstr (TString *a, TString *b) {
          (a->tsv.tt == LUA_TSHRSTR ? eqshrstr(a, b) : luaS_eqlngstr(a, b));
 }
 
-
+/*
+** 这个是 JS Hash Function 对随机字符串的hash得分为100分
+** BKDRHash，APHash，DJBHash，JSHash，RSHash，SDBMHash，PJWHash，ELFHash 常见8种字符串hash函数
+** 个人认为RSHash更好
+*/
 unsigned int luaS_hash (const char *str, size_t l, unsigned int seed) {
   unsigned int h = seed ^ cast(unsigned int, l);
   size_t l1;

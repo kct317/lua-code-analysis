@@ -410,6 +410,9 @@ typedef TValue *StkId;  /* index to stack elements */
 /*
 ** Header for string value; string bytes follow the end of this structure
 */
+/*
+** 字符串头，之后就是字符串的值
+*/
 typedef union TString {
   L_Umaxalign dummy;  /* ensures maximum alignment for strings */
   struct {
