@@ -147,6 +147,9 @@ void luaF_freeproto (lua_State *L, Proto *f) {
 ** Look for n-th local variable at line `line' in function `func'.
 ** Returns NULL if not found.
 */
+/*
+** 查找这个函数的第几行的第几个局部变量的名字
+*/
 const char *luaF_getlocalname (const Proto *f, int local_number, int pc) {
   int i;
   for (i = 0; i<f->sizelocvars && f->locvars[i].startpc <= pc; i++) {

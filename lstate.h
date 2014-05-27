@@ -92,15 +92,15 @@ typedef struct CallInfo {
 /*
 ** Bits in CallInfo status
 */
-#define CIST_LUA	(1<<0)	/* call is running a Lua function */
-#define CIST_HOOKED	(1<<1)	/* call is running a debug hook */
-#define CIST_REENTRY	(1<<2)	/* call is running on same invocation of
-                                   luaV_execute of previous call */
-#define CIST_YIELDED	(1<<3)	/* call reentered after suspension */
-#define CIST_YPCALL	(1<<4)	/* call is a yieldable protected call */
-#define CIST_STAT	(1<<5)	/* call has an error status (pcall) */
-#define CIST_TAIL	(1<<6)	/* call was tail called */
-#define CIST_HOOKYIELD	(1<<7)	/* last hook called yielded */
+#define CIST_LUA	(1<<0)	/* call is running a Lua function */ /* 正在调用一个lua函数*/
+#define CIST_HOOKED	(1<<1)	/* call is running a debug hook */  /* 正在调用一个调试用的hook函数*/
+#define CIST_REENTRY	(1<<2)	/* call is running on same invocation of  
+                                   luaV_execute of previous call */   /* 正在调用一个刚刚luaV_execute完的函数 */
+#define CIST_YIELDED	(1<<3)	/* call reentered after suspension */   /* 函数暂停后重新被调用 */
+#define CIST_YPCALL	(1<<4)	/* call is a yieldable protected call */   /* 函数是一个不可变受保护的函数，因为被暂停了 */
+#define CIST_STAT	(1<<5)	/* call has an error status (pcall) */    /* 当前函数发生错误 */
+#define CIST_TAIL	(1<<6)	/* call was tail called */    /*  */
+#define CIST_HOOKYIELD	(1<<7)	/* last hook called yielded */   /* 最后被调用的hook函数是不可变的 */
 
 
 #define isLua(ci)	((ci)->callstatus & CIST_LUA)
@@ -154,14 +154,14 @@ typedef struct global_State {
 struct lua_State {
   CommonHeader;
   lu_byte status;
-  StkId top;  /* first free slot in the stack */
-  global_State *l_G;
-  CallInfo *ci;  /* call info for current function */
+  StkId top;  /* first free slot in the stack */ /* 栈上第一个空闲的位置 */ 
+  global_State *l_G;   /* 全局State */ 
+  CallInfo *ci;  /* call info for current function */ /* 调用栈，双向列表 */ 
   const Instruction *oldpc;  /* last pc traced */
   StkId stack_last;  /* last free slot in the stack */
   StkId stack;  /* stack base */
   int stacksize;
-  unsigned short nny;  /* number of non-yieldable calls in stack */
+  unsigned short nny;  /* number of non-yieldable calls in stack */   /* 栈上的被暂停的函数调用的数量 */ 
   unsigned short nCcalls;  /* number of nested C calls */
   lu_byte hookmask;
   lu_byte allowhook;

@@ -72,6 +72,9 @@ l_noret luaM_toobig (lua_State *L) {
 /*
 ** generic allocation routine.
 */
+/*
+** 用lua_State的内存分配函数重新扩容，如果不行，清一清GC，再试一试
+*/
 void *luaM_realloc_ (lua_State *L, void *block, size_t osize, size_t nsize) {
   void *newblock;
   global_State *g = G(L);

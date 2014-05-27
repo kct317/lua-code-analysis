@@ -64,6 +64,9 @@
 /*
 ** this 'ltolower' only works for alphabetic characters
 */
+/*
+** 大小写 变 小写
+*/
 #define ltolower(c)	((c) | ('A' ^ 'a'))
 
 

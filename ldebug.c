@@ -206,7 +206,7 @@ LUA_API const char *lua_setlocal (lua_State *L, const lua_Debug *ar, int n) {
 }
 
 /*
-** ？？？
+** lua_Debug结构体存储闭包函数信息
 */
 static void funcinfo (lua_Debug *ar, Closure *cl) {
   if (noLuaClosure(cl)) {
@@ -222,6 +222,7 @@ static void funcinfo (lua_Debug *ar, Closure *cl) {
     ar->lastlinedefined = p->lastlinedefined;
     ar->what = (ar->linedefined == 0) ? "main" : "Lua";
   }
+  /* 输出错误信息 */
   luaO_chunkid(ar->short_src, ar->source, LUA_IDSIZE);
 }
 
@@ -299,7 +300,9 @@ static int auxgetinfo (lua_State *L, const char *what, lua_Debug *ar,
   return status;
 }
 
-
+/*
+** 真正全面的获取调试信息的API，供外部使用
+*/
 LUA_API int lua_getinfo (lua_State *L, const char *what, lua_Debug *ar) {
   int status;
   Closure *cl;

@@ -33,6 +33,11 @@ LUAI_DDEF const TValue luaO_nilobject_ = {NILCONSTANT};
 ** (eeeeexxx), where the real value is (1xxx) * 2^(eeeee - 1) if
 ** eeeee != 0 and (xxx) otherwise.
 */
+/*
+** 8个字节 存储 浮点数，前5位为指数部分，后3位为小数点后的部分
+** 当eeeee为0时，该浮点数无效
+** 17开始2个相同，33开始4个相同，65开始8个相同，要看位数中最高的1位
+*/
 int luaO_int2fb (unsigned int x) {
   int e = 0;  /* exponent */
   if (x < 8) return x;
@@ -45,13 +50,18 @@ int luaO_int2fb (unsigned int x) {
 
 
 /* converts back */
+/*
+** 浮点数 连续相同中最后一个对应的 整形
+*/
 int luaO_fb2int (int x) {
   int e = (x >> 3) & 0x1f;
   if (e == 0) return x;
   else return ((x & 7) + 8) << (e - 1);
 }
 
-
+/*
+** log2的顶值
+*/
 int luaO_ceillog2 (unsigned int x) {
   static const lu_byte log_2[256] = {
     0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
@@ -69,7 +79,9 @@ int luaO_ceillog2 (unsigned int x) {
   return l + log_2[x];
 }
 
-
+/*
+** 其实就是double类型的运算操作
+*/
 lua_Number luaO_arith (int op, lua_Number v1, lua_Number v2) {
   switch (op) {
     case LUA_OPADD: return luai_numadd(NULL, v1, v2);
@@ -83,7 +95,9 @@ lua_Number luaO_arith (int op, lua_Number v1, lua_Number v2) {
   }
 }
 
-
+/*
+** 16进制值 -> 10进制值
+*/
 int luaO_hexavalue (int c) {
   if (lisdigit(c)) return c - '0';
   else return ltolower(c) - 'a' + 10;
@@ -94,14 +108,18 @@ int luaO_hexavalue (int c) {
 
 #include <math.h>
 
-
+/*
+** 判断是否负数
+*/
 static int isneg (const char **s) {
   if (**s == '-') { (*s)++; return 1; }
   else if (**s == '+') (*s)++;
   return 0;
 }
 
-
+/*
+** 16进制值 -> lua_Number
+*/
 static lua_Number readhexa (const char **s, lua_Number r, int *count) {
   for (; lisxdigit(cast_uchar(**s)); (*s)++) {  /* read integer part */
     r = (r * cast_num(16.0)) + cast_num(luaO_hexavalue(cast_uchar(**s)));
@@ -114,6 +132,9 @@ static lua_Number readhexa (const char **s, lua_Number r, int *count) {
 /*
 ** convert an hexadecimal numeric string to a number, following
 ** C99 specification for 'strtod'
+*/
+/*
+** 16进制字符串 -> lua_Number
 */
 static lua_Number lua_strx2number (const char *s, char **endptr) {
   lua_Number r = 0.0;
@@ -154,7 +175,9 @@ static lua_Number lua_strx2number (const char *s, char **endptr) {
 
 #endif
 
-
+/*
+** 16进制字符串 是否能正确转化为 lua_Number
+*/
 int luaO_str2d (const char *s, size_t len, lua_Number *result) {
   char *endptr;
   if (strpbrk(s, "nN"))  /* reject 'inf' and 'nan' */
@@ -169,15 +192,20 @@ int luaO_str2d (const char *s, size_t len, lua_Number *result) {
 }
 
 
-
+/*
+** 将字符串 放进 数据栈
+*/
 static void pushstr (lua_State *L, const char *str, size_t l) {
   setsvalue2s(L, L->top++, luaS_newlstr(L, str, l));
 }
 
 
 /* this function handles only `%d', `%c', %f, %p, and `%s' formats */
+/*
+** 将格式字符串 放进 数据栈
+*/
 const char *luaO_pushvfstring (lua_State *L, const char *fmt, va_list argp) {
-  int n = 0;
+  int n = 0; /* 将截断的字符串在栈上合并——(luaV_concat) */
   for (;;) {
     const char *e = strchr(fmt, '%');
     if (e == NULL) break;
@@ -229,7 +257,9 @@ const char *luaO_pushvfstring (lua_State *L, const char *fmt, va_list argp) {
   return svalue(L->top - 1);
 }
 
-
+/*
+** 将格式字符串 放进 数据栈 的API
+*/
 const char *luaO_pushfstring (lua_State *L, const char *fmt, ...) {
   const char *msg;
   va_list argp;
@@ -249,6 +279,9 @@ const char *luaO_pushfstring (lua_State *L, const char *fmt, ...) {
 
 #define addstr(a,b,l)	( memcpy(a,b,(l) * sizeof(char)), a += (l) )
 
+/*
+** 输出错误信息，收到bufflen的影响  LUA_IDSIZE = 60   扩大之后可以输出更多的信息
+*/
 void luaO_chunkid (char *out, const char *source, size_t bufflen) {
   size_t l = strlen(source);
   if (*source == '=') {  /* 'literal' source */
