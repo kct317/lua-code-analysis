@@ -74,16 +74,16 @@ unsigned int luaS_hash (const char *str, size_t l, unsigned int seed) {
 ** resizes the string table
 */
 /*
-** 
+** 更改全局字符串hash表
 */
 void luaS_resize (lua_State *L, int newsize) {
   int i;
   stringtable *tb = &G(L)->strt;  /* 全局字符串表 */
   /* cannot resize while GC is traversing strings */
-  luaC_runtilstate(L, ~bitmask(GCSsweepstring));
+  luaC_runtilstate(L, ~bitmask(GCSsweepstring));  /* ~bitmask(a) == ~(1<<a)  GCSsweepstring=2 */
   if (newsize > tb->size) {
     luaM_reallocvector(L, tb->hash, tb->size, newsize, GCObject *);
-    for (i = tb->size; i < newsize; i++) tb->hash[i] = NULL;
+    for (i = tb->size; i < newsize; i++) tb->hash[i] = NULL;  /*  新加入的都置空 */
   }
   /* rehash */
   for (i=0; i<tb->size; i++) {
