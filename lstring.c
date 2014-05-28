@@ -110,6 +110,9 @@ void luaS_resize (lua_State *L, int newsize) {
 /*
 ** creates a new string object
 */
+/*
+** 利用lua_State的内存分配，拼接一个TString
+*/
 static TString *createstrobj (lua_State *L, const char *str, size_t l,
                               int tag, unsigned int h, GCObject **list) {
   TString *ts;
@@ -152,7 +155,7 @@ static TString *internshrstr (lua_State *L, const char *str, size_t l) {
   for (o = g->strt.hash[lmod(h, g->strt.size)];
        o != NULL;
        o = gch(o)->next) {
-    TString *ts = rawgco2ts(o);
+    TString *ts = rawgco2ts(o);  /* 原生的多累型的GCObject转为TString */
     if (h == ts->tsv.hash &&
         l == ts->tsv.len &&
         (memcmp(str, getstr(ts), l * sizeof(char)) == 0)) {
