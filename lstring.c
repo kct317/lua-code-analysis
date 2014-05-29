@@ -4,7 +4,10 @@
 ** See Copyright Notice in lua.h
 */
 /*
-** 字符串表
+** 字符串表 TString
+** global_State的stringtable
+** TString有分长短，短的存储在global_State的stringtable里面，长的不会
+**　
 */
 
 #include <string.h>
@@ -74,7 +77,7 @@ unsigned int luaS_hash (const char *str, size_t l, unsigned int seed) {
 ** resizes the string table
 */
 /*
-** 更改全局字符串hash表
+** 更改全局字符串hash表的大小，主要是设置hash值
 */
 void luaS_resize (lua_State *L, int newsize) {
   int i;
@@ -111,7 +114,7 @@ void luaS_resize (lua_State *L, int newsize) {
 ** creates a new string object
 */
 /*
-** 利用lua_State的内存分配，拼接一个TString
+** 利用G(L)的内存分配，拼接一个TString
 */
 static TString *createstrobj (lua_State *L, const char *str, size_t l,
                               int tag, unsigned int h, GCObject **list) {
@@ -148,11 +151,15 @@ static TString *newshrstr (lua_State *L, const char *str, size_t l,
 /*
 ** checks whether short string exists and reuses it or creates a new one
 */
+/*
+** TString是否相等看hash、len还有字符串内容是否一样
+** 先去global_State的stringtable看看有没有相应的hash值(GCObject)
+*/
 static TString *internshrstr (lua_State *L, const char *str, size_t l) {
   GCObject *o;
   global_State *g = G(L);
   unsigned int h = luaS_hash(str, l, g->seed);
-  for (o = g->strt.hash[lmod(h, g->strt.size)];
+  for (o = g->strt.hash[lmod(h, g->strt.size)];  /* hash是一个二维的链表 */
        o != NULL;
        o = gch(o)->next) {
     TString *ts = rawgco2ts(o);  /* 原生的多累型的GCObject转为TString */
@@ -160,7 +167,7 @@ static TString *internshrstr (lua_State *L, const char *str, size_t l) {
         l == ts->tsv.len &&
         (memcmp(str, getstr(ts), l * sizeof(char)) == 0)) {
       if (isdead(G(L), o))  /* string is dead (but was not collected yet)? */
-        changewhite(o);  /* resurrect it */
+        changewhite(o);  /* resurrect it 复活它 */  
       return ts;
     }
   }
@@ -170,6 +177,9 @@ static TString *internshrstr (lua_State *L, const char *str, size_t l) {
 
 /*
 ** new string (with explicit length)
+*/
+/*
+** 创建TString有分长短
 */
 TString *luaS_newlstr (lua_State *L, const char *str, size_t l) {
   if (l <= LUAI_MAXSHORTLEN)  /* short string? */
