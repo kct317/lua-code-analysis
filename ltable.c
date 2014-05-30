@@ -3,7 +3,11 @@
 ** Lua tables (hash)
 ** See Copyright Notice in lua.h
 */
-
+/*
+** 表 = 数组(数字下标) + hash树
+** 数组：最大的下标未必就是这个数组的实际大小，要看这个N是否有超过一半都在使用
+** hash树：使用Brent's variation，成功的O(1)，失败的O(N)
+*/
 
 /*
 ** Implementation of tables (aka arrays, objects, or hash tables).
@@ -47,7 +51,7 @@
 
 #define MAXASIZE	(1 << MAXBITS)
 
-
+/* #define gnode(t,i)	(&(t)->node[i]) */
 #define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
 
 #define hashstr(t,str)		hashpow2(t, (str)->tsv.hash)
