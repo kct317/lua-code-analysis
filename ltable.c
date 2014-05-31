@@ -6,7 +6,9 @@
 /*
 ** 表 = 数组(数字下标) + hash树
 ** 数组：最大的下标未必就是这个数组的实际大小，要看这个N是否有超过一半都在使用
-** hash树：使用Brent's variation，成功的O(1)，失败的O(N)
+** hash树：将key哈希化，使用Brent's variation，成功的O(1)，失败的O(N)
+** 20140531今日唔系好想看代码，不过我都会坚持下去，让它成为一种习惯
+** 
 */
 
 /*
@@ -52,8 +54,9 @@
 #define MAXASIZE	(1 << MAXBITS)
 
 /* #define gnode(t,i)	(&(t)->node[i]) */
+/* #define lmod(s,size) (check_exp((size&(size-1))==0, (cast(int, (s) & ((size)-1))))) */
 #define hashpow2(t,n)		(gnode(t, lmod((n), sizenode(t))))
-
+/* str，p对应的hash树节点 */
 #define hashstr(t,str)		hashpow2(t, (str)->tsv.hash)
 #define hashboolean(t,p)	hashpow2(t, p)
 
@@ -61,6 +64,9 @@
 /*
 ** for some types, it is better to avoid modulus by power of 2, as
 ** they tend to have many 2 factors.
+*/
+/*
+** 求余操作  避免底数为2的幂次方   是想尽量多得出2的n次幂的余数
 */
 #define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
 
@@ -72,14 +78,20 @@
 
 #define isdummy(n)		((n) == dummynode)
 
-static const Node dummynode_ = {
-  {NILCONSTANT},  /* value */
-  {{NILCONSTANT, NULL}}  /* key */
+/* 
+** 树的一个特殊节点
+*/
+static const Node dummynode_ = {  
+  {NILCONSTANT},  /* value  TValue */  /* #define NILCONSTANT	{NULL}, LUA_TNIL<=0> */
+  {{NILCONSTANT, NULL}}  /* key  TKey */
 };
 
 
 /*
-** hash for lua_Numbers
+** hash for lua_Numbers<double>
+*/
+/*
+** 返回数组部分的下标
 */
 static Node *hashnum (const Table *t, lua_Number n) {
   int i;
@@ -98,11 +110,15 @@ static Node *hashnum (const Table *t, lua_Number n) {
 ** returns the `main' position of an element in a table (that is, the index
 ** of its hash value)
 */
+/*
+** 这个才是真正的返回Table某个key的value
+** hashnum()   hashstr()   hashboolean()   hashpointer()
+*/
 static Node *mainposition (const Table *t, const TValue *key) {
   switch (ttype(key)) {
     case LUA_TNUMBER:
       return hashnum(t, nvalue(key));
-    case LUA_TLNGSTR: {
+    case LUA_TLNGSTR: {  /* 长字符串 */
       TString *s = rawtsvalue(key);
       if (s->tsv.extra == 0) {  /* no hash? */
         s->tsv.hash = luaS_hash(getstr(s), s->tsv.len, s->tsv.hash);
@@ -110,7 +126,7 @@ static Node *mainposition (const Table *t, const TValue *key) {
       }
       return hashstr(t, rawtsvalue(key));
     }
-    case LUA_TSHRSTR:
+    case LUA_TSHRSTR:  /* 短字符串 */
       return hashstr(t, rawtsvalue(key));
     case LUA_TBOOLEAN:
       return hashboolean(t, bvalue(key));
@@ -127,6 +143,9 @@ static Node *mainposition (const Table *t, const TValue *key) {
 /*
 ** returns the index for `key' if `key' is an appropriate key to live in
 ** the array part of the table, -1 otherwise.
+*/
+/*
+** 只是单纯的对数字型的key转换
 */
 static int arrayindex (const TValue *key) {
   if (ttisnumber(key)) {
@@ -145,13 +164,16 @@ static int arrayindex (const TValue *key) {
 ** elements in the array part, then elements in the hash part. The
 ** beginning of a traversal is signaled by -1.
 */
+/*
+** 找到key对应的下标
+*/
 static int findindex (lua_State *L, Table *t, StkId key) {
   int i;
   if (ttisnil(key)) return -1;  /* first iteration */
   i = arrayindex(key);
-  if (0 < i && i <= t->sizearray)  /* is `key' inside array part? */
+  if (0 < i && i <= t->sizearray)  /* is `key' inside array part? */  /* 数组 */
     return i-1;  /* yes; that's the index (corrected to C) */
-  else {
+  else {  /* hash树 */
     Node *n = mainposition(t, key);
     for (;;) {  /* check whether `key' is somewhere in the chain */
       /* key may be dead already, but it is ok to use it in `next' */
@@ -159,7 +181,7 @@ static int findindex (lua_State *L, Table *t, StkId key) {
             (ttisdeadkey(gkey(n)) && iscollectable(key) &&
              deadvalue(gkey(n)) == gcvalue(key))) {
         i = cast_int(n - gnode(t, 0));  /* key index in hash table */
-        /* hash elements are numbered after array ones */
+        /* hash elements are numbered after array ones */  /* 这里透露了node[]是先放数字型，紧接着放其他类型的(根据hash值排序) */
         return i + t->sizearray;
       }
       else n = gnext(n);
@@ -169,7 +191,9 @@ static int findindex (lua_State *L, Table *t, StkId key) {
   }
 }
 
-
+/*
+** 返回Table的下一个key对应的value
+*/
 int luaH_next (lua_State *L, Table *t, StkId key) {
   int i = findindex(L, t, key);  /* find original element */
   for (i++; i < t->sizearray; i++) {  /* try first array part */
