@@ -220,7 +220,9 @@ int luaH_next (lua_State *L, Table *t, StkId key) {
 ** ==============================================================
 */
 
-
+/*
+** 
+*/
 static int computesizes (int nums[], int *narray) {
   int i;
   int twotoi;  /* 2^i */
