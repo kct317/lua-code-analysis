@@ -221,14 +221,14 @@ int luaH_next (lua_State *L, Table *t, StkId key) {
 */
 
 /*
-** 
+** 计算数组部分的大小
 */
 static int computesizes (int nums[], int *narray) {
   int i;
   int twotoi;  /* 2^i */
   int a = 0;  /* number of elements smaller than 2^i */
-  int na = 0;  /* number of elements to go to array part */
-  int n = 0;  /* optimal size for array part */
+  int na = 0;  /* number of elements to go to array part */  /* 数组的元素数量 */
+  int n = 0;  /* optimal size for array part */  /* 数组的最佳规模 */
   for (i = 0, twotoi = 1; twotoi/2 < *narray; i++, twotoi *= 2) {
     if (nums[i] > 0) {
       a += nums[i];
@@ -244,7 +244,9 @@ static int computesizes (int nums[], int *narray) {
   return na;
 }
 
-
+/*
+** 统计每一个2^i区间内的元素个数
+*/
 static int countint (const TValue *key, int *nums) {
   int k = arrayindex(key);
   if (0 < k && k <= MAXASIZE) {  /* is `key' an appropriate array index? */
@@ -255,7 +257,9 @@ static int countint (const TValue *key, int *nums) {
     return 0;
 }
 
-
+/*
+** 统计数组的元素个数
+*/
 static int numusearray (const Table *t, int *nums) {
   int lg;
   int ttlg;  /* 2^lg */
@@ -280,7 +284,9 @@ static int numusearray (const Table *t, int *nums) {
   return ause;
 }
 
-
+/*
+** 统计hashmap的元素个数
+*/
 static int numusehash (const Table *t, int *nums, int *pnasize) {
   int totaluse = 0;  /* total number of elements */
   int ause = 0;  /* summation of `nums' */
@@ -296,7 +302,9 @@ static int numusehash (const Table *t, int *nums, int *pnasize) {
   return totaluse;
 }
 
-
+/*
+** 设置数组的大小
+*/
 static void setarrayvector (lua_State *L, Table *t, int size) {
   int i;
   luaM_reallocvector(L, t->array, t->sizearray, size, TValue);
@@ -305,7 +313,9 @@ static void setarrayvector (lua_State *L, Table *t, int size) {
   t->sizearray = size;
 }
 
-
+/*
+** 设置hash......
+*/
 static void setnodevector (lua_State *L, Table *t, int size) {
   int lsize;
   if (size == 0) {  /* no elements to hash part? */
